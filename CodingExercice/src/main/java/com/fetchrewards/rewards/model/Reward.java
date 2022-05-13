@@ -14,7 +14,9 @@ public class Reward {
 	private String payer;
 	private long points;
 	private Date timestamp;
-	
+	public Reward(){
+		
+	}
 	public Reward(String payer, long points, Date timestamp) {
 		super();
 		this.payer = payer;
