@@ -1,4 +1,4 @@
-package com.fetchrewards.model;
+package com.fetchrewards.rewards.model;
 
 import java.util.Date;
 import java.util.Objects;
