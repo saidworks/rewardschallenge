@@ -1,0 +1,5 @@
+package com.fetchrewards.controller;
+
+public class RewardsController {
+
+}
