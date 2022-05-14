@@ -1,0 +1,5 @@
+package com.fetchrewards.repository;
+
+public class LoadDatabase {
+
+}
