@@ -5,9 +5,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.util.stream.Collectors;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,26 +30,35 @@ public class RewardController {
 	}
 	
 	//helper function 
-	Map<String,Long> sumUp(List<Payer> rewards){
+	List<Payer> sumUp(List<Payer> rewards){
 		Iterator<Payer> elements = rewards.iterator();
-		Map<String,Long> map = new HashMap<String,Long> ();
+		Map<String,Payer> map = new HashMap<> ();
 		while(elements.hasNext()) {
 			Payer current = elements.next();
 			String key = (String) current.getPayer();
 			if(key.length()>0) {
 				if(!map.containsKey(key)) {
-					map.put(key,current.getPoints());
+					map.put(key,current);
 				}
 				else {
-					long value = map.get(key);
+					long value = map.get(key).getPoints();
 					value += current.getPoints();
-					map.put(key,value);
+					Payer payer = new Payer();
+					payer.setPayer(current.getPayer());
+					payer.setPoints(value);
+					System.out.println(value);
+					map.remove(key);
+					map.put(key,payer);
 					System.out.println(key+value);
 					}
 				
 			}
 		}
-		return map;
+		List<Payer> payers = new ArrayList<>();
+		for(Payer p:map.values()) {
+			payers.add(p);
+		}
+		return payers;
 	}
 	
 
@@ -60,12 +70,12 @@ public class RewardController {
 	}
 	
 	@PostMapping("/spend")
-	Map<String,Long>  spend(@RequestBody Map<String,Long> points) {
+	List<Payer>  spend(@RequestBody Map<String,Long> points) {
 		/* post an amount of point 
 		 * check dates for transactions
 		 * spend with FIFO in timestamps in mind
-		 *  if amount of points for a payer is smaller then the spend then get just a small fraction from it
-		 *  if amount of points for a payer is bigger then the spend points then get the biggest portion from that respective payer
+		 *  if amount of points for a payer is smaller then the spend then get it all and set the points for that transaction
+		 *  if amount of points for a payer is bigger then the spend points then get the rest portion from that respective payer transaction
 		 * */
 		long spend = points.get("points");
 		List<Reward> rewards = this.all();
@@ -91,27 +101,29 @@ public class RewardController {
 				payer.setPoints(-current.getPoints());
 				payers.add(payer);
 				current.setPoints(0);
-				System.out.println(">:" +current);
-				System.out.println(spend);
+//				System.out.println(">:" +current);
+//				System.out.println(spend);
 				repository.save(current);
 				
 			}
 			else if(current.getPoints()>spend && spend>0) {
 				Payer payer = new Payer();
 				current.setPoints(current.getPoints()-spend);
-				System.out.println(">" + current);
+//				System.out.println(">" + current);
 				repository.save(current);
-				System.out.println(spend);
+//				System.out.println(spend);
 				payer.setPayer(current.getPayer());
 				payer.setPoints(-spend);
 				payers.add(payer);
 				break;
 			}
 		}
-		System.out.println(points.get("points"));
 		
-		Map<String,Long> payersMap = sumUp(payers);
-		return payersMap;
+		
+		List<Payer> balance = sumUp(payers);
+		List<Payer> payerSorted =  balance.stream()
+						.sorted(Comparator.comparingLong((Payer payer) -> -payer.getPoints())).collect(Collectors.toList());
+		return payerSorted;
 	}
 	
 	
@@ -124,8 +136,18 @@ public class RewardController {
 	@GetMapping("/balance")
 	Map<String,Long> balance(){
 		List<Reward> rewards = repository.findAll();
+		
+		//order the list of rewards by date ASC
+		Collections.sort(rewards, new Comparator<Reward>() {
+			  public int compare(Reward o1, Reward o2) {
+			      if (o1.getTimestamp() == null || o2.getTimestamp() == null)
+			        return 0;
+			      return o1.getTimestamp().compareTo(o2.getTimestamp());
+			  }
+			});
+		
 		Iterator<Reward> elements = rewards.iterator();
-		Map<String,Long> rewardsMap = new HashMap<String,Long> ();
+		Map<String,Long> rewardsMap = new LinkedHashMap<String,Long> ();
 		while(elements.hasNext()) {
 			Reward current = elements.next();
 			String key = current.getPayer();
