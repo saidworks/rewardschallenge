@@ -36,9 +36,5 @@ public class Payer {
 		Payer other = (Payer) obj;
 		return Objects.equals(payer, other.payer) && points == other.points;
 	}
-//	@Override
-//	public int compareTo(Payer o) {
-//		// TODO Auto-generated method stub
-//		return this.payer != o.payer ? 1 : this.points > o.points ? -1 : 0;
-//	}
+
 }

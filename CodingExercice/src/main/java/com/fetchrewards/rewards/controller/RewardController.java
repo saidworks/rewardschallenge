@@ -24,12 +24,12 @@ public class RewardController {
 	private final RewardRepository repository;
 	
 	
-	
+	//jpa repository dependency injection
 	public RewardController(RewardRepository repository) {
 		this.repository = repository;
 	}
 	
-	//helper function 
+	//helper function to sum points and put it in array 
 	List<Payer> sumUp(List<Payer> rewards){
 		Iterator<Payer> elements = rewards.iterator();
 		Map<String,Payer> map = new HashMap<> ();
@@ -46,10 +46,8 @@ public class RewardController {
 					Payer payer = new Payer();
 					payer.setPayer(current.getPayer());
 					payer.setPoints(value);
-					System.out.println(value);
 					map.remove(key);
 					map.put(key,payer);
-					System.out.println(key+value);
 					}
 				
 			}
@@ -63,19 +61,20 @@ public class RewardController {
 	
 
 	
-	
-	@PostMapping("/rewards")
+	//add reward endpoint
+	@PostMapping("/add")
 	Reward addReward(@RequestBody Reward newReward) {
 		return repository.save(newReward);
 	}
 	
+	//spend points from payers endpoint 
 	@PostMapping("/spend")
 	List<Payer>  spend(@RequestBody Map<String,Long> points) {
-		/* post an amount of point 
-		 * check dates for transactions
+		/* post an amount of point to spend 
+		 * check dates of each transactions in db
 		 * spend with FIFO in timestamps in mind
-		 *  if amount of points for a payer is smaller then the spend then get it all and set the points for that transaction
-		 *  if amount of points for a payer is bigger then the spend points then get the rest portion from that respective payer transaction
+		 *  if amount of points for a payer in a transaction is smaller then the spend value then get it all and set the points for that transaction to zero
+		 *  if amount of points for a payer is bigger then the spend points decrease it by the amount of the spend value from that respective payer transaction and break from loop
 		 * */
 		long spend = points.get("points");
 		List<Reward> rewards = this.all();
@@ -93,7 +92,6 @@ public class RewardController {
 		Iterator<Reward> elements = rewards.iterator();
 		while(elements.hasNext()) {
 			Reward current = elements.next();
-//			System.out.println(current);
 			if(current.getPoints()<=spend && spend>0) {
 				Payer payer = new Payer();
 				spend -= current.getPoints();
@@ -101,17 +99,13 @@ public class RewardController {
 				payer.setPoints(-current.getPoints());
 				payers.add(payer);
 				current.setPoints(0);
-//				System.out.println(">:" +current);
-//				System.out.println(spend);
 				repository.save(current);
 				
 			}
 			else if(current.getPoints()>spend && spend>0) {
 				Payer payer = new Payer();
 				current.setPoints(current.getPoints()-spend);
-//				System.out.println(">" + current);
 				repository.save(current);
-//				System.out.println(spend);
 				payer.setPayer(current.getPayer());
 				payer.setPoints(-spend);
 				payers.add(payer);
@@ -119,8 +113,9 @@ public class RewardController {
 			}
 		}
 		
-		
+		//create new list from payers that contains payer name with their total points 
 		List<Payer> balance = sumUp(payers);
+		//order it by points DSC
 		List<Payer> payerSorted =  balance.stream()
 						.sorted(Comparator.comparingLong((Payer payer) -> -payer.getPoints())).collect(Collectors.toList());
 		return payerSorted;
@@ -146,6 +141,7 @@ public class RewardController {
 			  }
 			});
 		
+		// put the payers in a map that track order of insertion
 		Iterator<Reward> elements = rewards.iterator();
 		Map<String,Long> rewardsMap = new LinkedHashMap<String,Long> ();
 		while(elements.hasNext()) {
@@ -158,7 +154,6 @@ public class RewardController {
 				else {
 					long value = rewardsMap.get(key);
 					value += current.getPoints();
-					System.out.println(key+value);
 					rewardsMap.put(key,value);
 					}
 			}
